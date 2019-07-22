@@ -27,9 +27,21 @@ public class FlowableController {
         return holidayRequestProcess;
     }
 
+    @DeleteMapping(value = {"/processes/{pid}"})
+    public void deleteProcess(@PathVariable String pid){
+        holidayRequestService.deleteProcess(pid);
+    }
+
     @GetMapping(value = {"/processes"})
     public  List<HolidayRequestProcess> getAllProcesses(){
         List<HolidayRequestProcess> holidayRequestProcesses = holidayRequestService.getAllProcesses();
+
+        return holidayRequestProcesses;
+    }
+
+    @GetMapping(value = {"/processes/finished"})
+    public List<HolidayRequestProcess> getFinishedProcesses(){
+        List<HolidayRequestProcess> holidayRequestProcesses = holidayRequestService.getFinishedProcesses();
 
         return holidayRequestProcesses;
     }

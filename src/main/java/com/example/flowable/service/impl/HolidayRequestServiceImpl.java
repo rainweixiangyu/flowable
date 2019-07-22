@@ -3,8 +3,10 @@ package com.example.flowable.service.impl;
 import com.example.flowable.model.HolidayRequestProcess;
 import com.example.flowable.model.TaskInfo;
 import com.example.flowable.service.HolidayRequestService;
+import org.flowable.engine.HistoryService;
 import org.flowable.engine.RuntimeService;
 import org.flowable.engine.TaskService;
+import org.flowable.engine.history.HistoricProcessInstance;
 import org.flowable.engine.runtime.ProcessInstance;
 import org.flowable.task.api.Task;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -27,6 +29,9 @@ public class HolidayRequestServiceImpl implements HolidayRequestService {
     @Autowired
     private TaskService taskService;
 
+    @Autowired
+    private HistoryService historyService;
+
     @Override
     public String hello(String name){
         return "Hi, " + name;
@@ -47,7 +52,7 @@ public class HolidayRequestServiceImpl implements HolidayRequestService {
     }
 
     private HolidayRequestProcess convertProcessInstance(ProcessInstance processInstance){
-        Map<String, Object> variabls = runtimeService.getVariables(processInstance.getId());
+        Map<String, Object> variables = runtimeService.getVariables(processInstance.getId());
 
         HolidayRequestProcess holidayRequestProcess = new HolidayRequestProcess();
         holidayRequestProcess.setExecutionId(processInstance.getId());
@@ -58,10 +63,30 @@ public class HolidayRequestServiceImpl implements HolidayRequestService {
         holidayRequestProcess.setDescription(processInstance.getDescription());
         holidayRequestProcess.setStartTime(processInstance.getStartTime());
         holidayRequestProcess.setStartUser(processInstance.getStartUserId());
-        holidayRequestProcess.setEmployName(variabls.get(REQUESTOR).toString());
-        holidayRequestProcess.setRequestDays(Integer.valueOf(variabls.get(REQUEST_DAY).toString()));
-        holidayRequestProcess.setReason(variabls.get(REASON).toString());
+        holidayRequestProcess.setEmployName(variables.get(REQUESTOR).toString());
+        holidayRequestProcess.setRequestDays(Integer.valueOf(variables.get(REQUEST_DAY).toString()));
+        holidayRequestProcess.setReason(variables.get(REASON).toString());
         holidayRequestProcess.setProcessDefinitionKey(processInstance.getProcessDefinitionKey());
+
+        return holidayRequestProcess;
+    }
+
+    private HolidayRequestProcess convertHistoricProcessInstance(HistoricProcessInstance historicProcessInstance){
+        Map<String, Object> variables = historicProcessInstance.getProcessVariables();
+
+        HolidayRequestProcess holidayRequestProcess = new HolidayRequestProcess();
+        holidayRequestProcess.setExecutionId(historicProcessInstance.getId());
+        holidayRequestProcess.setProcessDefinitionId(historicProcessInstance.getProcessDefinitionId());
+        holidayRequestProcess.setProcessDefinitionName(historicProcessInstance.getProcessDefinitionName());
+        holidayRequestProcess.setName(historicProcessInstance.getName());
+        holidayRequestProcess.setProcessInstanceId(historicProcessInstance.getSuperProcessInstanceId());
+        holidayRequestProcess.setDescription(historicProcessInstance.getDescription());
+        holidayRequestProcess.setStartTime(historicProcessInstance.getStartTime());
+        holidayRequestProcess.setStartUser(historicProcessInstance.getStartUserId());
+        //holidayRequestProcess.setEmployName(variables.get(REQUESTOR).toString());
+        //holidayRequestProcess.setRequestDays(Integer.valueOf(variables.get(REQUEST_DAY).toString()));
+        //holidayRequestProcess.setReason(variables.get(REASON).toString());
+        holidayRequestProcess.setProcessDefinitionKey(historicProcessInstance.getProcessDefinitionKey());
 
         return holidayRequestProcess;
     }
@@ -69,6 +94,16 @@ public class HolidayRequestServiceImpl implements HolidayRequestService {
     @Override
     public List<HolidayRequestProcess> getAllProcesses(){
         return runtimeService.createProcessInstanceQuery().list().stream().map(p -> convertProcessInstance(p)).collect(Collectors.toList());
+    }
+
+    @Override
+    public List<HolidayRequestProcess> getFinishedProcesses(){
+        return historyService.createHistoricProcessInstanceQuery()
+                .finished()
+                .list()
+                .stream()
+                .map(p -> convertHistoricProcessInstance(p))
+                .collect(Collectors.toList());
     }
 
     private TaskInfo convertTask(Task task){
@@ -114,5 +149,10 @@ public class HolidayRequestServiceImpl implements HolidayRequestService {
         HashMap<String, Object> map = new HashMap<>();
         map.put("approved", approve);
         taskService.complete(taskId, map);
+    }
+
+    @Override
+    public void deleteProcess(String pid){
+        runtimeService.deleteProcessInstance(pid, "");
     }
 }
